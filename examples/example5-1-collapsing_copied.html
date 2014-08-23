@@ -126,10 +126,10 @@
 
     var TaskNameFormatter = function (row, cell, value, columnDef, dataContext) {
         value = value.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-        var spacer = "<span style='display:inline-block;height:1px;width:" + (15 * dataContext["indent"]) + "px'></span>";
+        var spacer = "<span style='display:inline-block;height:1px;width:" + (15 * (dataContext["level"] - 1) ) + "px'></span>";
         var idx = dataView.getIdxById(dataContext.id);
 
-        if (data[idx + 1] && data[idx + 1].indent > data[idx].indent) {
+        if (data[idx + 1] && data[idx + 1].level > data[idx].level) {
             if (dataContext._collapsed) {
                 return spacer + " <span class='toggle expand'></span>&nbsp;" + value;
             } else {
@@ -150,7 +150,6 @@
         {id: "p_str_id", name: "p_str_id", field: "p_str_id"},
         {id: "level", name: "level", field: "level"},
         {id: "delta_level", name: "delta_level", field: "delta_level"},
-        {id: "indent", name: "indent", field: "indent"},
         {id: "%", name: "% Complete", field: "percentComplete", width: 80, resizable: false, formatter: Slick.Formatters.PercentCompleteBar, editor: Slick.Editors.PercentComplete}
     ];
 
@@ -165,40 +164,18 @@
 
     var searchString = "";
 
-//    function myFilter(item) {
-//        if (searchString != "" && item["title"].indexOf(searchString) == -1) {
-//            return false;
-//        }
-//        if (item.parent != null) {
-//            var parent = data[item.parent];
-//            while (parent) {
-//                if (parent._collapsed ||  (searchString != "" && parent["title"].indexOf(searchString) == -1)) {
-//                    return false;
-//                }
-//                parent = data[parent.parent];
-//            }
-//        }
-//        return true;
-//    }
-
     function treeFilter(item) {
-        if (item.parent != null) {
-            var parent = data[item.parent];
-            while (parent) {
-                if (parent._collapsed === true) {
+        if (item.p_id != null) {
+            var pItem = dataView.getItemById(item.p_id);
+            while (pItem) {
+                if (pItem._collapsed === true) {
                     return false;
                 }
-                parent = data[parent.parent];
+                pItem = dataView.getItemById(pItem.p_id)
             }
         }
         return true;
     }
-
-
-    function percentCompleteSort(a, b) {
-        return a["percentComplete"] - b["percentComplete"];
-    }
-
 
     function requiredFieldValidator(value) {
         if (value == null || value == undefined || !value.length) {
@@ -214,38 +191,15 @@
             dataView.beginUpdate();
             for (var i=0; i < selectedIdxList.length; i++) {
                 var selectedIdx = selectedIdxList[i];
-                var idx = data.length;
-                var dataItem = __makeNewData(idx, selectedIdx);
+                var dataItem = makeSampleDataItem(selectedIdx);
                 dataView.insertItem(selectedIdx + 1, dataItem);
                 //Toggle??????????????????????????????ROW??????????????
-                var parentItem = dataView.getItemByIdx(dataItem.parent);
+                var parentItem = dataView.getItemById(dataItem.p_id);
                 dataView.updateItem(parentItem.id, parentItem);
             }
             dataView.endUpdate();
         });
 
-        function __makeNewData (idx, parent) {
-            var deltaLevel = 1;
-            var d = {};
-            d["id"] = "id_" + idx;
-            d["parent"] = parent;
-            d["title"] = "Task " + idx;
-
-            d["str_id"] = idx;
-            if (parent) {
-                var p = data[parent];
-                d["p_str_id"] = p.str_id;
-                d["level"] = p.level + deltaLevel;
-                d["delta_level"] = deltaLevel;
-            } else {
-                d["p_str_id"] = 0;
-                d["level"] = 0 + deltaLevel;
-                d["delta_level"] = deltaLevel;
-            }
-            d["indent"] = d.level -1;
-            d["percentComplete"] = d.level * 10;
-            return d;
-        }
     }
 
     function bindDelEvent() {
@@ -253,47 +207,38 @@
     }
 
     function makeSampleData() {
-        var data = [];
-        var indent = 0;
         var parents = [];
+        var level = 1;
         for (var i = 0; i < 50; i++) {
-            var d = {};
-            var parent;
-
+            var pIdx;
             if (Math.random() > 0.8 && i > 0) {
-                indent++;
+                level++;
                 parents.push(i - 1);
-            } else if (Math.random() < 0.3 && indent > 0) {
-                indent--;
+            } else if (Math.random() < 0.3 && level > 1) {
+                level--;
                 parents.pop();
             }
-
             if (parents.length > 0) {
-                parent = parents[parents.length - 1];
+                pIdx = parents[parents.length - 1];
             } else {
-                parent = null;
+                pIdx = null;
             }
-
-            d["id"] = "id_" + i;
-            d["indent"] = indent;
-            d["parent"] = parent;
-            d["title"] = "Task " + i;
-
-            d["str_id"] = i;
-            if (parent) {
-                var p = data[parent];
-                d["p_str_id"] = p.str_id;
-                d["level"] = p.level + 1;
-                d["delta_level"] = d.level - p.level;
-            } else {
-                d["p_str_id"] = 0;
-                d["level"] = indent + 1;
-                d["delta_level"] = d.level;
-            }
-            d["percentComplete"] = d.level * 10;
-            data[i] = d;
+            data[i] = makeSampleDataItem(pIdx);
         }
-        return data;
+    }
+    function makeSampleDataItem (pIdx) {
+        var idx = data.length;
+        var d = {};
+        d["id"] = "id_" + idx;
+        d["title"] = "Task " + idx;
+        d["str_id"] = idx;
+        d["delta_level"] = 1;
+        var p = data[pIdx] || {str_id:0, id: null, level: 0};//default
+        d["p_str_id"] = p.str_id;
+        d["p_id"] = p.id;
+        d["level"] = p.level + d.delta_level;
+        d["percentComplete"] = d.level * 10;
+        return d;
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -301,7 +246,7 @@
     $(function () {
 
         // prepare the data
-        data = makeSampleData();
+        makeSampleData();
 
         // initialize the model
         dataView = new Slick.Data.DataView({ inlineFilters: true });
@@ -491,15 +436,7 @@
         });
 
         grid.onAddNewRow.subscribe(function (e, args) {
-            var item = {
-                "id": "new_" + (Math.round(Math.random() * 10000)),
-                "indent": 0,
-                "title": "New task",
-                "duration": "1 day",
-                "percentComplete": 0,
-                "start": "01/01/2009",
-                "finish": "01/01/2009",
-                "effortDriven": false};
+            var item = makeSampleDataItem(null);
             $.extend(item, args.item);
             dataView.addItem(item);
         });
