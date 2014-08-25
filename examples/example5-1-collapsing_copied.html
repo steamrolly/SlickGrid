@@ -76,10 +76,18 @@
                 <label>Show tasks : </label>
                 <label>title including:</label>
                 <input type=text id="txtSearch">
+                <br/>
+                <button id="btn_add_root">add root</button>
                 <button id="btn_add">add</button>
-
+                <button id="btn_del">del</button>
+                <button id="btn_move_trash_box">trash</button>
+                <button id="btn_move_up">move up</button>
+                <button id="btn_move_down">move down</button>
+                <button id="btn_move_level_up">level up</button>
+                <button id="btn_move_level_down">level down</button>
+                <br/>
+                <button id="btn_move_to">move to</button><input id="txt_move_to" type="text"/>
             </div>
-            <br/>
 
             <div id="myGrid" style="width:600px;height:700px;"></div>
         </td>
@@ -185,8 +193,23 @@
         }
     }
 
+    function bindEvents() {
+        bindAddRootEvent();
+        bindAddEvent();
+        bindDelEvent();
+    }
+
+    function bindAddRootEvent() {
+        $("#btn_add_root").on("click.add_root", function () {
+            var dataItem = makeSampleDataItem(null);
+            dataView.beginUpdate();
+            dataView.addItem(dataItem);
+            dataView.endUpdate();
+        });
+    }
+
     function bindAddEvent() {
-        $("#btn_add").on("click", function () {
+        $("#btn_add").on("click.add", function () {
             var selectedIdxList = grid.getSelectedRows().sort().reverse();
             dataView.beginUpdate();
             for (var i=0; i < selectedIdxList.length; i++) {
@@ -199,11 +222,24 @@
             }
             dataView.endUpdate();
         });
-
     }
 
     function bindDelEvent() {
-
+        $("#btn_del").on("click.del", function () {
+            var selectedIdxList = grid.getSelectedRows().sort().reverse();
+            dataView.beginUpdate();
+            for (var i=0; i < selectedIdxList.length; i++) {
+                var selectedIdx = selectedIdxList[i];
+                var selectedItem = dataView.getItemByIdx(selectedIdx);
+                dataView.deleteItem(selectedItem.id);
+                //Toggle??????????????????????????????ROW??????????????
+                if (selectedItem.p_id) {
+                    var parentItem = dataView.getItemById(selectedItem.p_id);
+                    dataView.updateItem(parentItem.id, parentItem);
+                }
+            }
+            dataView.endUpdate();
+        });
     }
 
     function makeSampleData() {
@@ -423,11 +459,7 @@
 
 
 
-
-        bindAddEvent();
-
-        bindDelEvent();
-
+        bindEvents();
 
 
 
